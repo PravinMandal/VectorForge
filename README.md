@@ -134,18 +134,19 @@ cd VectorForge
 
 ### Step 5 — Compile the C++ Server
 
-Inside the `VectorForge/backend` folder, compile the project:
+Inside the `VectorForge/backend` folder, compile the project using CMake:
 
 ```powershell
 cd backend
 mkdir build
-cd src
-g++ -std=c++17 -O2 main.cpp -o ../build/db.exe -lws2_32
+cd build
+cmake ..
+cmake --build . --config Release
 ```
 
 > **Troubleshooting:**
+> - `cmake: command not found` → Make sure CMake is installed (MSYS2 `pacman -S mingw-w64-ucrt-x86_64-cmake`)
 > - `g++: command not found` → MSYS2 not in PATH, redo Step 1 point 5
-> - `undefined reference to WSA...` → missing `-lws2_32` flag, add it
 
 ---
 
@@ -181,15 +182,17 @@ npm run dev
 ```
 VectorForge/
 ├── backend/
-│   ├── build/      ← Compiled executable (db.exe)
+│   ├── CMakeLists.txt  ← Build system configuration
+│   ├── build/          ← Compiled executable (db.exe)
+│   ├── vendor/         
+│   │   └── httplib.h   ← Single-header HTTP server library
 │   └── src/
-│       ├── main.cpp    ← C++ backend (HNSW, KD-Tree, BruteForce, RAG)
-│       └── httplib.h   ← Single-header HTTP server library
+│       └── main.cpp    ← C++ backend (HNSW, KD-Tree, BruteForce, RAG)
 ├── frontend/
-│   ├── src/        ← React & Vite application source
-│   ├── index.html  ← Frontend entrypoint
+│   ├── src/            ← React & Vite application source
+│   ├── index.html      ← Frontend entrypoint
 │   └── package.json
-└── README.md       ← This file
+└── README.md           ← This file
 ```
 
 ---
