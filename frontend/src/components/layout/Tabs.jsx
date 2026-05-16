@@ -3,12 +3,23 @@ import { AppContext } from '../../contexts/AppContext';
 
 export default function Tabs() {
   const { activeTab, setActiveTab } = useContext(AppContext);
+  const tabs = [
+    { id: 'search',    label: 'Search' },
+    { id: 'documents', label: 'Documents' },
+    { id: 'rag',       label: 'Ask AI' },
+  ];
 
   return (
     <div className="tabs">
-      <div className={`tab ${activeTab === 'search' ? 'on' : ''}`} onClick={() => setActiveTab('search')}>SEARCH</div>
-      <div className={`tab ${activeTab === 'docs' ? 'on' : ''}`} onClick={() => setActiveTab('docs')}>DOCUMENTS</div>
-      <div className={`tab ${activeTab === 'rag' ? 'on' : ''}`} onClick={() => setActiveTab('rag')}>ASK AI</div>
+      {tabs.map(t => (
+        <div
+          key={t.id}
+          className={`tab-btn${activeTab === t.id ? ' active' : ''}`}
+          onClick={() => setActiveTab(t.id)}
+        >
+          {t.label}
+        </div>
+      ))}
     </div>
   );
 }

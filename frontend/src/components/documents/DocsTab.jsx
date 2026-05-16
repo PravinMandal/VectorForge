@@ -4,103 +4,141 @@ import { textToEmbedding } from '../../utils';
 import * as api from '../../api';
 
 export default function DocsTab() {
-  const { activeTab, ollamaStatus, docs, deleteDocument, checkOllamaStatus, loadDocList, loadItems } = useContext(AppContext);
-  const [docTitle, setDocTitle] = useState('');
-  const [docText, setDocText] = useState('');
-  const [isInsertingDoc, setIsInsertingDoc] = useState(false);
-  const [insertStatus, setInsertStatus] = useState(null);
+  const {
+    activeTab, ollamaStatus, docs,
+    deleteDocument, checkOllamaStatus, loadDocList, loadItems,
+  } = useContext(AppContext);
 
-  if (activeTab !== 'docs') return null;
+  const [title, setTitle]         = useState('');
+  const [text, setText]           = useState('');
+  const [inserting, setInserting] = useState(false);
+  const [status, setStatus]       = useState(null);
 
-  const insertDocument = async () => {
-    const title = docTitle.trim();
-    const text = docText.trim();
-    if (!title || !text) {
-      setInsertStatus({ error: '⚠ Need both a title and text.' });
-      return;
-    }
-    
-    setIsInsertingDoc(true);
-    setInsertStatus({ pending: 'Calling Ollama nomic-embed-text…' });
-    
+  const insertDoc = async () => {
+    const t = title.trim(), c = text.trim();
+    if (!t || !c || inserting) return;
+    setInserting(true);
+    setStatus({ ok: null, msg: 'Embedding with Ollama…' });
     try {
-      const d = await api.insertDoc(title, text);
+      const d = await api.insertDoc(t, c);
       if (d.error) {
-        setInsertStatus({ error: `✗ ${d.error}` });
+        setStatus({ ok: false, msg: d.error });
       } else {
-        setInsertStatus({ success: `✓ Inserted ${d.chunks} chunk(s) · ${d.dims}D embeddings` });
-        setDocTitle('');
-        setDocText('');
-        
-        const emb16 = textToEmbedding(title + ' ' + text);
-        await api.insertItem(title, 'doc', emb16);
-        await loadItems();
-        await loadDocList();
-        await checkOllamaStatus();
+        setStatus({ ok: true, msg: `${d.chunks} chunk(s) · ${d.dims}D` });
+        setTitle(''); setText('');
+        await api.insertItem(t, 'doc', textToEmbedding(t + ' ' + c));
+        await Promise.all([loadItems(), loadDocList(), checkOllamaStatus()]);
       }
-    } catch (_) {
-      setInsertStatus({ error: '✗ Server error' });
+    } catch {
+      setStatus({ ok: false, msg: 'Server unreachable.' });
     }
-    setIsInsertingDoc(false);
+    setInserting(false);
   };
 
   return (
-    <div className="tab-content on">
-      <div>
-        <div className="sec">Ollama Status</div>
-        <div className={`ollama-status ${ollamaStatus?.ollamaAvailable ? 'ok' : 'err'}`}>
-          {ollamaStatus ? (
-            ollamaStatus.ollamaAvailable ? (
-              <>
-                <span style={{ color: 'var(--green)' }}>● Online</span><br/>
-                Embed: <span style={{ color: 'var(--accent)' }}>{ollamaStatus.embedModel}</span><br/>
-                Generate: <span style={{ color: 'var(--accent)' }}>{ollamaStatus.genModel}</span><br/>
-                Dims: <span style={{ color: 'var(--muted)' }}>{ollamaStatus.docDims || '(first insert sets this)'}</span><br/>
-                Documents: <span style={{ color: 'var(--text)' }}>{ollamaStatus.docCount}</span>
-              </>
-            ) : (
-              <>
-                <span style={{ color: 'var(--red)' }}>● Offline</span><br/><br/>
-                To enable RAG features:<br/>
-                <span style={{ color: 'var(--muted)' }}>1. Install from ollama.com<br/>
-                2. ollama pull nomic-embed-text<br/>
-                3. ollama pull llama3.2</span>
-              </>
-            )
-          ) : 'Checking…'}
-        </div>
-      </div>
-      <div>
-        <div className="sec">Insert Document</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <input type="text" placeholder="Document title / topic…" value={docTitle} onChange={e => setDocTitle(e.target.value)} />
-          <textarea placeholder="Paste your notes, textbook excerpt, lecture content…&#10;&#10;Long text is automatically split into overlapping chunks and each chunk gets its own real embedding via Ollama's nomic-embed-text model." value={docText} onChange={e => setDocText(e.target.value)}></textarea>
-          <button className="btn-g" disabled={isInsertingDoc} onClick={insertDocument}>{isInsertingDoc ? 'Embedding…' : '⚡ EMBED & INSERT'}</button>
-          <div style={{ fontSize: '11px', color: 'var(--muted)' }}>
-            {insertStatus?.pending && <span style={{ color: 'var(--muted)' }}>{insertStatus.pending}</span>}
-            {insertStatus?.error && <span style={{ color: 'var(--red)' }}>{insertStatus.error}</span>}
-            {insertStatus?.success && <span style={{ color: 'var(--green)' }}>{insertStatus.success}</span>}
-          </div>
-        </div>
-      </div>
-      <div>
-        <div className="sec">Stored Documents (<span>{docs.length}</span>)</div>
-        <div className="doc-list">
-          {docs.length === 0 ? (
-            <div style={{ color: 'var(--muted)', fontSize: '11px' }}>No documents yet. Insert some above.</div>
-          ) : (
-            docs.map(d => (
-              <div className="dcard" key={d.id}>
-                <div className="dcard-title">{d.title}</div>
-                <div className="dcard-preview">{d.preview}</div>
-                <div className="dcard-foot">
-                  <span className="dcard-words">{d.words} words</span>
-                  <button className="del" onClick={() => deleteDocument(d.id)}>✕</button>
+    <div className={`tab-pane${activeTab === 'documents' ? ' active' : ''}`}>
+      <div className="pane-scroll">
+
+        {/* Ollama */}
+        <div>
+          <div className="section-title">Ollama Status</div>
+          <div className={`status-box ${ollamaStatus?.ollamaAvailable ? 'ok' : 'err'}`}>
+            {!ollamaStatus ? (
+              <span style={{ color: 'var(--text3)' }}>Checking…</span>
+            ) : ollamaStatus.ollamaAvailable ? (
+              <div style={{ color: 'var(--text2)', fontSize: 11 }}>
+                <div>
+                  <span className="status-dot" style={{ background: 'var(--green)' }} />
+                  <span style={{ color: 'var(--green)', fontWeight: 500 }}>Online</span>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  Embed: <span style={{ color: 'var(--text)' }}>{ollamaStatus.embedModel}</span>
+                </div>
+                <div>
+                  Gen: <span style={{ color: 'var(--text)' }}>{ollamaStatus.genModel}</span>
+                </div>
+                <div>
+                  Dims: <span style={{ color: 'var(--text)' }}>{ollamaStatus.docDims || '—'}</span>
+                  &ensp;Docs: <span style={{ color: 'var(--text)' }}>{ollamaStatus.docCount}</span>
                 </div>
               </div>
-            ))
+            ) : (
+              <div style={{ fontSize: 11 }}>
+                <div>
+                  <span className="status-dot" style={{ background: 'var(--red)' }} />
+                  <span style={{ color: 'var(--red)', fontWeight: 500 }}>Offline</span>
+                </div>
+                <div style={{ marginTop: 6, color: 'var(--text3)', lineHeight: 1.8, fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+                  ollama pull nomic-embed-text<br />
+                  ollama pull llama3.2
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Insert */}
+        <div>
+          <div className="section-title">Insert Document</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <input
+              type="text"
+              placeholder="Title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
+            <textarea
+              placeholder="Paste document content here…"
+              value={text}
+              onChange={e => setText(e.target.value)}
+              rows={5}
+            />
+            <button
+              className="btn btn-positive"
+              disabled={inserting || !title.trim() || !text.trim()}
+              onClick={insertDoc}
+            >
+              {inserting ? <><div className="spin" />Embedding…</> : 'Embed & Insert'}
+            </button>
+            {status && (
+              <div
+                className="form-status"
+                style={{ color: status.ok === true ? 'var(--green)' : status.ok === false ? 'var(--red)' : 'var(--text3)' }}
+              >
+                {status.msg}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* List */}
+        <div>
+          <div className="section-title">
+            Documents {docs.length > 0 && `— ${docs.length}`}
+          </div>
+          {docs.length === 0 ? (
+            <div style={{ color: 'var(--text3)', fontSize: 12 }}>No documents yet.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {docs.map(d => (
+                <div className="doc-card" key={d.id}>
+                  <div className="doc-title">{d.title}</div>
+                  <div className="doc-preview">{d.preview}</div>
+                  <div className="doc-meta">
+                    <span className="doc-words">{d.words} words</span>
+                    <button
+                      className="result-del"
+                      onClick={() => deleteDocument(d.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
+
       </div>
     </div>
   );

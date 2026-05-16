@@ -18,19 +18,17 @@ export default function App() {
       <Header />
       <div className="layout">
         <LeftPanel />
-        
-        {/* ══ CENTER: SCATTER PLOT ══ */}
+
         <div className="center-panel">
-          <ScatterPlot 
-            pcaPoints={pcaPoints} 
-            hitIds={hitIds} 
-            queryPt={queryPt} 
-            hoverItem={hoverItem} 
-            setHoverItem={setHoverItem} 
+          <ScatterPlot
+            pcaPoints={pcaPoints}
+            hitIds={hitIds}
+            queryPt={queryPt}
+            hoverItem={hoverItem}
+            setHoverItem={setHoverItem}
           />
         </div>
-        
-        {/* ══ RIGHT PANEL: TABS ══ */}
+
         <div className="right-panel">
           <Tabs />
           <SearchTab />
@@ -38,10 +36,22 @@ export default function App() {
           <RagTab />
         </div>
       </div>
-      
-      {hoverItem && hoverItem.item && (
-        <div id="tip" style={{ display: 'block', left: (hoverItem.x + 14) + 'px', top: (hoverItem.y - 8) + 'px' }}>
-          <span style={{ color: COL[hoverItem.item.category] || COL.default }}>[{hoverItem.item.category}]</span><br/>
+
+      {hoverItem?.item && (
+        <div
+          id="tooltip"
+          style={{
+            display: 'block',
+            left: (hoverItem.x + 14) + 'px',
+            top:  (hoverItem.y - 6) + 'px',
+          }}
+        >
+          <div
+            className="tt-cat"
+            style={{ color: COL[hoverItem.item.category] || COL.default }}
+          >
+            {hoverItem.item.category}
+          </div>
           {hoverItem.item.metadata}
         </div>
       )}

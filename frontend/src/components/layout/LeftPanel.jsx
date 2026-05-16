@@ -4,81 +4,150 @@ import { COL, textToEmbedding } from '../../utils';
 import * as api from '../../api';
 
 export default function LeftPanel() {
-  const { qInput, setQInput, selAlgo, setSelAlgo, metric, setMetric, k, setK, runSearch, runBenchmark, loadItems } = useContext(AppContext);
-  const [addMeta, setAddMeta] = useState('');
-  const [addCat, setAddCat] = useState('cs');
+  const {
+    qInput, setQInput,
+    selAlgo, setSelAlgo,
+    metric, setMetric,
+    k, setK,
+    runSearch, runBenchmark, loadItems,
+  } = useContext(AppContext);
+
+  const [meta, setMeta]     = useState('');
+  const [cat, setCat]       = useState('cs');
+  const [adding, setAdding] = useState(false);
 
   const addVector = async () => {
-    const meta = addMeta.trim();
-    if (!meta) return;
-    const emb = textToEmbedding(meta + ' ' + addCat);
+    const m = meta.trim();
+    if (!m || adding) return;
+    setAdding(true);
     try {
-      await api.insertItem(meta, addCat, emb);
-      setAddMeta('');
+      await api.insertItem(m, cat, textToEmbedding(m + ' ' + cat));
+      setMeta('');
       await loadItems();
     } catch (_) {}
+    setAdding(false);
   };
 
-  const handleQInputKeyDown = (e) => {
-    if (e.key === 'Enter') runSearch();
-  };
+  const legend = [
+    { key: 'cs',     label: 'CS / Algorithms', color: 'var(--cs)' },
+    { key: 'math',   label: 'Mathematics',     color: 'var(--math)' },
+    { key: 'food',   label: 'Food & Cooking',  color: 'var(--food)' },
+    { key: 'sports', label: 'Sports & Games',  color: 'var(--sports)' },
+    { key: 'doc',    label: 'Documents (RAG)', color: 'var(--doc)' },
+  ];
 
   return (
     <div className="left-panel">
-      <div>
-        <div className="sec">Query (Demo Vectors)</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <input type="text" placeholder="binary tree, sushi, basketball…" value={qInput} onChange={e => setQInput(e.target.value)} onKeyDown={handleQInputKeyDown} />
-          <button className="btn-p" onClick={runSearch}>⚡ SEARCH</button>
+
+      {/* Search */}
+      <div className="panel-section">
+        <div className="panel-section-label">Vector Search</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <input
+            type="text"
+            placeholder="e.g. binary tree, sushi…"
+            value={qInput}
+            onChange={e => setQInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && runSearch()}
+          />
+          <button
+            className="btn btn-primary"
+            onClick={runSearch}
+            disabled={!qInput.trim()}
+          >
+            Search
+          </button>
         </div>
       </div>
-      <div>
-        <div className="sec">Algorithm</div>
+
+      {/* Algorithm */}
+      <div className="panel-section">
+        <div className="panel-section-label">Algorithm</div>
         <div className="algo-row">
-          <div className={`algo-btn ${selAlgo === 'hnsw' ? 'on' : ''}`} onClick={() => setSelAlgo('hnsw')}>HNSW</div>
-          <div className={`algo-btn ${selAlgo === 'kdtree' ? 'on' : ''}`} onClick={() => setSelAlgo('kdtree')}>KD-TREE</div>
-          <div className={`algo-btn ${selAlgo === 'bruteforce' ? 'on' : ''}`} onClick={() => setSelAlgo('bruteforce')}>BRUTE</div>
+          {[['hnsw', 'HNSW'], ['kdtree', 'KD-Tree'], ['bruteforce', 'Brute']].map(([v, l]) => (
+            <div
+              key={v}
+              className={`algo-pill${selAlgo === v ? ' active' : ''}`}
+              onClick={() => setSelAlgo(v)}
+            >
+              {l}
+            </div>
+          ))}
         </div>
       </div>
-      <div>
-        <div className="sec">Distance Metric</div>
+
+      {/* Metric */}
+      <div className="panel-section">
+        <div className="panel-section-label">Distance Metric</div>
         <select value={metric} onChange={e => setMetric(e.target.value)}>
-          <option value="cosine">Cosine Similarity</option>
-          <option value="euclidean">Euclidean Distance</option>
-          <option value="manhattan">Manhattan Distance</option>
+          <option value="cosine">Cosine</option>
+          <option value="euclidean">Euclidean</option>
+          <option value="manhattan">Manhattan</option>
         </select>
       </div>
-      <div>
-        <div className="sec">Top-K: <span>{k}</span></div>
-        <input type="range" min="1" max="10" value={k} onChange={e => setK(parseInt(e.target.value))} />
+
+      {/* Top-K */}
+      <div className="panel-section">
+        <div className="panel-section-label" style={{ marginBottom: 6 }}>
+          Top-K &nbsp;<span style={{ color: 'var(--text2)', fontFamily: 'var(--font-mono)' }}>{k}</span>
+        </div>
+        <input
+          type="range"
+          min="1"
+          max="10"
+          value={k}
+          onChange={e => setK(parseInt(e.target.value))}
+        />
       </div>
-      <div>
-        <div className="sec">Category Legend</div>
-        <div className="legend">
-          <div className="leg-row"><div className="dot" style={{ background: COL.cs, boxShadow: `0 0 5px ${COL.cs}` }}></div>CS / Algorithms</div>
-          <div className="leg-row"><div className="dot" style={{ background: COL.math, boxShadow: `0 0 5px ${COL.math}` }}></div>Mathematics</div>
-          <div className="leg-row"><div className="dot" style={{ background: COL.food, boxShadow: `0 0 5px ${COL.food}` }}></div>Food &amp; Cooking</div>
-          <div className="leg-row"><div className="dot" style={{ background: COL.sports, boxShadow: `0 0 5px ${COL.sports}` }}></div>Sports &amp; Games</div>
-          <div className="leg-row"><div className="dot" style={{ background: COL.green, boxShadow: `0 0 5px ${COL.green}` }}></div>Documents (RAG)</div>
+
+      {/* Legend */}
+      <div className="panel-section">
+        <div className="panel-section-label">Legend</div>
+        <div className="legend-grid">
+          {legend.map(({ key, label, color }) => (
+            <div className="legend-item" key={key}>
+              <div className="legend-dot" style={{ background: color }} />
+              <span>{label}</span>
+            </div>
+          ))}
         </div>
       </div>
-      <div>
-        <div className="sec">Insert Demo Vector</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <input type="text" placeholder="Description…" value={addMeta} onChange={e => setAddMeta(e.target.value)} />
-          <select value={addCat} onChange={e => setAddCat(e.target.value)}>
+
+      {/* Insert Vector */}
+      <div className="panel-section">
+        <div className="panel-section-label">Insert Vector</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <input
+            type="text"
+            placeholder="Description"
+            value={meta}
+            onChange={e => setMeta(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addVector()}
+          />
+          <select value={cat} onChange={e => setCat(e.target.value)}>
             <option value="cs">CS / Algorithms</option>
             <option value="math">Mathematics</option>
-            <option value="food">Food &amp; Cooking</option>
-            <option value="sports">Sports &amp; Games</option>
+            <option value="food">Food & Cooking</option>
+            <option value="sports">Sports & Games</option>
           </select>
-          <button className="btn-s" onClick={addVector}>+ INSERT</button>
+          <button
+            className="btn btn-default"
+            onClick={addVector}
+            disabled={adding || !meta.trim()}
+          >
+            {adding ? 'Inserting…' : 'Insert'}
+          </button>
         </div>
       </div>
-      <div>
-        <div className="sec">Benchmark</div>
-        <button className="btn-s" onClick={runBenchmark}>▶ COMPARE ALL ALGOS</button>
+
+      {/* Benchmark */}
+      <div className="panel-section">
+        <div className="panel-section-label">Benchmark</div>
+        <button className="btn btn-default" onClick={runBenchmark}>
+          Run Comparison
+        </button>
       </div>
+
     </div>
   );
 }
